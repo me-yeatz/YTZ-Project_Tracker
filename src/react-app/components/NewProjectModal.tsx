@@ -82,8 +82,18 @@ export default function NewProjectModal({ onClose, onSave }: NewProjectModalProp
             color: formData.color
         };
 
-        onSave(newProject);
-        onClose();
+        try {
+            console.log('Saving new project:', newProject);
+            onSave(newProject);
+            console.log('Project saved successfully');
+            onClose();
+        } catch (error) {
+            console.error('Error saving project:', error);
+            // Still close modal to prevent stuck state? Or show error?
+            // For now, let's assume valid data and just log.
+            // If critical, maybe set a form level error.
+            setErrors(prev => ({ ...prev, submit: 'Failed to create project. Please try again.' }));
+        }
     };
 
     const handleChange = (field: string, value: string) => {
@@ -96,7 +106,7 @@ export default function NewProjectModal({ onClose, onSave }: NewProjectModalProp
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
             onClick={onClose}
         >
             <div
@@ -273,6 +283,11 @@ export default function NewProjectModal({ onClose, onSave }: NewProjectModalProp
                     </div>
 
                     {/* Action Buttons */}
+                    {errors.submit && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm mb-4">
+                            {errors.submit}
+                        </div>
+                    )}
                     <div className="flex items-center gap-4 pt-4 border-t border-white/5">
                         <button
                             type="submit"
