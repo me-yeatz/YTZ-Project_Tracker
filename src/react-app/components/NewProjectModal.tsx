@@ -5,22 +5,25 @@ import { Project, ProjectStatus } from '../types';
 interface NewProjectModalProps {
     onClose: () => void;
     onSave: (project: Omit<Project, 'id'>) => void;
+    initialData?: Project;
 }
 
-export default function NewProjectModal({ onClose, onSave }: NewProjectModalProps) {
+export default function NewProjectModal({ onClose, onSave, initialData }: NewProjectModalProps) {
     const [formData, setFormData] = useState({
-        title: '',
-        clientName: '',
-        location: '',
-        description: '',
-        status: 'concept' as ProjectStatus,
-        startDate: new Date().toISOString().split('T')[0],
-        targetCompletionDate: '',
-        totalBudget: '',
-        color: '#dc2626'
+        title: initialData?.title || '',
+        clientName: initialData?.clientName || '',
+        location: initialData?.location || '',
+        description: initialData?.description || '',
+        status: initialData?.status || 'concept' as ProjectStatus,
+        startDate: initialData?.startDate || new Date().toISOString().split('T')[0],
+        targetCompletionDate: initialData?.targetCompletionDate || '',
+        totalBudget: initialData?.totalBudget?.toString() || '',
+        color: initialData?.color || '#dc2626'
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    const isEditing = !!initialData;
 
     const statusOptions: { value: ProjectStatus; label: string; color: string }[] = [
         { value: 'concept', label: 'Concept', color: '#6366f1' },
@@ -78,12 +81,12 @@ export default function NewProjectModal({ onClose, onSave }: NewProjectModalProp
             startDate: formData.startDate,
             targetCompletionDate: formData.targetCompletionDate || undefined,
             totalBudget: formData.totalBudget ? parseFloat(formData.totalBudget) : undefined,
-            submissions: [],
+            submissions: initialData?.submissions || [],
             color: formData.color
         };
 
         try {
-            console.log('Saving new project:', newProject);
+            console.log('Saving project:', newProject);
             onSave(newProject);
             console.log('Project saved successfully');
             onClose();
@@ -116,8 +119,8 @@ export default function NewProjectModal({ onClose, onSave }: NewProjectModalProp
                 {/* Header */}
                 <div className="flex items-start justify-between mb-8">
                     <div>
-                        <h2 className="text-3xl font-display font-bold mb-2">Create New Project</h2>
-                        <p className="text-slate-400">Add a new architecture project to your tracker</p>
+                        <h2 className="text-3xl font-display font-bold mb-2">{isEditing ? 'Edit Project' : 'Create New Project'}</h2>
+                        <p className="text-slate-400">{isEditing ? 'Update project details' : 'Add a new architecture project to your tracker'}</p>
                     </div>
                     <button
                         onClick={onClose}
@@ -293,7 +296,7 @@ export default function NewProjectModal({ onClose, onSave }: NewProjectModalProp
                             type="submit"
                             className="flex-1 bg-red-600 hover:bg-red-700 text-white px-6 py-4 rounded-xl font-medium transition-all shadow-lg shadow-red-600/20 active:scale-95"
                         >
-                            Create Project
+                            {isEditing ? 'Save Changes' : 'Create Project'}
                         </button>
                         <button
                             type="button"

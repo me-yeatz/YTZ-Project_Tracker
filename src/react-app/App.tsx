@@ -38,6 +38,7 @@ export default function App() {
     const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
     const [searchQuery, setSearchQuery] = useState('');
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+    const [editingProject, setEditingProject] = useState<Project | null>(null);
 
     // Communication Manager State
     const [messages, setMessages] = useState<ClientMessage[]>(MOCK_MESSAGES);
@@ -100,13 +101,35 @@ export default function App() {
         localStorage.setItem('autoResponseSettings', JSON.stringify(newSettings));
     };
 
-    const handleCreateProject = (newProjectData: Omit<Project, 'id'>) => {
-        const newProject: Project = {
-            ...newProjectData,
-            id: `project-${Date.now()}`
-        };
-        setProjects(prev => [newProject, ...prev]);
-        setViewMode('projects'); // Navigate to projects view to see the new project
+    const handleSaveProject = (projectData: Omit<Project, 'id'>) => {
+        if (editingProject) {
+            // Update existing
+            setProjects(prev => prev.map(p =>
+                p.id === editingProject.id
+                    ? { ...projectData, id: editingProject.id }
+                    : p
+            ));
+            setEditingProject(null);
+        } else {
+            // Create new
+            const newProject: Project = {
+                ...projectData,
+                id: `project-${Date.now()}`
+            };
+            setProjects(prev => [newProject, ...prev]);
+            setViewMode('projects');
+        }
+    };
+
+    const handleEditProject = (project: Project) => {
+        setEditingProject(project);
+        setShowNewProjectModal(true);
+    };
+
+    const handleDeleteProject = (projectId: string) => {
+        if (window.confirm('Are you sure you want to delete this project? This action cannot be undone.')) {
+            setProjects(prev => prev.filter(p => p.id !== projectId));
+        }
     };
 
 
@@ -229,7 +252,14 @@ export default function App() {
                 </nav>
 
                 <div className="p-4 border-t border-white/5">
-                    <NavItem icon={<Settings size={20} />} label="Settings" onClick={() => { }} />
+                    <NavItem
+                        icon={<Settings size={20} />}
+                        label="Settings"
+                        onClick={() => {
+                            setShowSettingsPanel(true);
+                            if (isMobile) setSidebarOpen(false);
+                        }}
+                    />
                     <div className="mt-4 p-4 rounded-xl bg-white/5 flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-600 to-orange-400 flex items-center justify-center">
                             <User size={20} />
@@ -259,21 +289,21 @@ export default function App() {
             )}
 
             {/* Main Content */}
-            <main className="flex-1 p-8 grid-bg relative transition-all duration-300 lg:ml-64">
+            <main className={`flex-1 transition-all duration-300 ${isMobile ? 'p-4' : 'p-8'} grid-bg relative lg:ml-64 overflow-x-hidden`}>
                 {/* Header */}
-                <header className="flex items-center justify-between mb-12">
-                    <div className="relative group">
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                    <div className="relative group w-full md:w-auto">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-red-500 transition-colors" size={18} />
                         <input
                             type="text"
-                            placeholder="Search projects, clients, locations..."
-                            className="pl-12 pr-6 py-3 bg-white/5 border border-white/5 rounded-2xl w-96 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all focus:bg-white/10"
+                            placeholder="Search projects..."
+                            className="pl-12 pr-6 py-3 bg-white/5 border border-white/5 rounded-2xl w-full md:w-96 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all focus:bg-white/10"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
 
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center justify-between md:justify-end gap-4">
                         <button className="p-3 bg-white/5 border border-white/5 rounded-xl hover:bg-white/10 transition-colors relative">
                             <Bell size={20} className="text-slate-400" />
                             {financialSummary.pendingSubmissions > 0 && (
@@ -281,8 +311,11 @@ export default function App() {
                             )}
                         </button>
                         <button
-                            onClick={() => setShowNewProjectModal(true)}
-                            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg shadow-red-600/20 active:scale-95"
+                            onClick={() => {
+                                setEditingProject(null);
+                                setShowNewProjectModal(true);
+                            }}
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-medium transition-all shadow-lg shadow-red-600/20 active:scale-95 whitespace-nowrap"
                         >
                             <Plus size={20} />
                             <span>New Project</span>
@@ -303,7 +336,7 @@ export default function App() {
                         </section>
 
                         {/* Stats Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-12">
                             <StatCard
                                 title="Total Projects"
                                 value={financialSummary.totalProjects.toString()}
@@ -335,12 +368,14 @@ export default function App() {
                         </div>
 
                         {/* Gantt Chart Timeline */}
-                        <section className="mb-12">
-                            <div className="flex items-center justify-between mb-8">
+                        <section className="mb-12 overflow-x-auto custom-scrollbar">
+                            <div className="flex items-center justify-between mb-8 min-w-[600px] md:min-w-0">
                                 <h2 className="text-2xl font-display font-bold">Project Timeline</h2>
                                 <p className="text-sm text-slate-400">Visual overview of all project schedules</p>
                             </div>
-                            <GanttChart projects={projects} />
+                            <div className="min-w-[800px] lg:min-w-0">
+                                <GanttChart projects={projects} />
+                            </div>
                         </section>
 
                         {/* Recent Projects */}
@@ -357,7 +392,12 @@ export default function App() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredProjects.slice(0, 6).map((project) => (
-                                    <ProjectCard key={project.id} project={project} />
+                                    <ProjectCard
+                                        key={project.id}
+                                        project={project}
+                                        onEdit={handleEditProject}
+                                        onDelete={handleDeleteProject}
+                                    />
                                 ))}
                             </div>
                         </section>
@@ -377,7 +417,12 @@ export default function App() {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {filteredProjects.map((project) => (
-                                <ProjectCard key={project.id} project={project} />
+                                <ProjectCard
+                                    key={project.id}
+                                    project={project}
+                                    onEdit={handleEditProject}
+                                    onDelete={handleDeleteProject}
+                                />
                             ))}
                         </div>
                     </>
@@ -456,8 +501,12 @@ export default function App() {
             {/* New Project Modal */}
             {showNewProjectModal && (
                 <NewProjectModal
-                    onClose={() => setShowNewProjectModal(false)}
-                    onSave={handleCreateProject}
+                    onClose={() => {
+                        setShowNewProjectModal(false);
+                        setEditingProject(null);
+                    }}
+                    onSave={handleSaveProject}
+                    initialData={editingProject || undefined}
                 />
             )}
 
@@ -484,6 +533,7 @@ interface NavItemProps {
 function NavItem({ icon, label, active = false, onClick, badge }: NavItemProps) {
     return (
         <button
+            type="button"
             onClick={onClick}
             className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 relative ${active
                 ? 'bg-red-600/10 text-red-500 border border-red-500/20'
